@@ -5,21 +5,24 @@ EXPOSE 80
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copiar todos los archivos .csproj primero
-COPY *.csproj ./
+# Copiar archivos de solución y proyectos
+COPY *.sln ./
+COPY LibrarySystem/*.csproj LibrarySystem/
+COPY Test/*.csproj Test/
+
+# Restaurar dependencias
 RUN dotnet restore
 
 # Copiar todo el código
 COPY . .
 
-# Build y publish
-RUN dotnet build -c Release -o /app/build
-RUN dotnet publish -c Release -o /app/publish
+# Build del proyecto principal
+RUN dotnet build LibrarySystem/LibrarySystem.csproj -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish LibrarySystem/LibrarySystem.csproj -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
-COPY --from=build /app/publish .
-
-# Buscar automáticamente el DLL principal
-RUN ls -la
-ENTRYPOINT ["dotnet", "$(ls *.dll | head -1)"]
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "LibrarySystem.dll"]
